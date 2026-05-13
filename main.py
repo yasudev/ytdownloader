@@ -1,9 +1,21 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import threading
 import os
+import sys
+import io
 import yt_dlp
 from datetime import timedelta
+
+class NullLogger:
+    def debug(self, msg): pass
+    def info(self, msg): pass
+    def warning(self, msg): pass
+    def error(self, msg): pass
+
+if sys.platform == "win32" and getattr(sys, "frozen", False):
+    import ctypes
+    ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 def format_duration(seconds):
     if not seconds:
@@ -74,8 +86,14 @@ def download():
                 "outtmpl": outtmpl,
                 "quiet": True,
                 "no_warnings": True,
+                "logger": NullLogger(),
                 "progress_hooks": [ProgressHook()],
+                "ffmpeg_location": os.environ.get("FFMPEG_PATH", ""),
             }
+            if sys.platform == "win32":
+                ydl_opts["quiet"] = True
+                ydl_opts["verbose"] = False
+                sys.stderr = io.StringIO()
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
@@ -107,7 +125,11 @@ def fetch_info():
 
     def worker():
         try:
-            ydl_opts = {"quiet": True, "no_warnings": True}
+            ydl_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "logger": NullLogger(),
+            }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
             root.after(0, lambda: display_info(info))

@@ -19,13 +19,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller yt-dlp
 
       - name: Build EXE
-        run: pyinstaller --onefile --windowed --name hello_world main.py
+        run: pyinstaller --onefile --windowed --name ytdownloader main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hello_world-windows
-          path: dist/hello_world.exe
+          name: ytdownloader-windows
+          path: dist/ytdownloader.exe

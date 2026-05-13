@@ -4,10 +4,13 @@ import threading
 import os
 import sys
 import io
+import tempfile
 import yt_dlp
+from yt_dlp.cookies import extract_cookies_from_browser
 from datetime import timedelta
 
 COOKIES_FILE = ""
+TEMP_COOKIES = None
 
 class NullLogger:
     def debug(self, msg): pass
@@ -18,15 +21,22 @@ class NullLogger:
 BROWSERS = ["", "chrome", "firefox", "edge", "brave", "chromium", "opera", "vivaldi"]
 
 def select_cookies_file():
-    global COOKIES_FILE
+    global COOKIES_FILE, TEMP_COOKIES
     path = filedialog.askopenfilename(
         title="Select cookies.txt file",
         filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
     )
     if path:
         COOKIES_FILE = path
+        TEMP_COOKIES = None
         cookies_file_label.config(text=os.path.basename(path))
         browser_combo.set("")
+
+def on_browser_select(event):
+    global COOKIES_FILE, TEMP_COOKIES
+    if browser_combo.get():
+        COOKIES_FILE = ""
+        cookies_file_label.config(text="")
 
 if sys.platform == "win32" and getattr(sys, "frozen", False):
     import ctypes
@@ -107,7 +117,10 @@ def download():
             }
             browser = browser_combo.get()
             if browser:
-                ydl_opts["cookiesfrombrowser"] = (browser,)
+                jar = extract_cookies_from_browser(browser)
+                tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8")
+                jar.save(tmp.name)
+                ydl_opts["cookiefile"] = tmp.name
             elif COOKIES_FILE:
                 ydl_opts["cookiefile"] = COOKIES_FILE
             if sys.platform == "win32":
@@ -152,7 +165,10 @@ def fetch_info():
             }
             browser = browser_combo.get()
             if browser:
-                ydl_opts["cookiesfrombrowser"] = (browser,)
+                jar = extract_cookies_from_browser(browser)
+                tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8")
+                jar.save(tmp.name)
+                ydl_opts["cookiefile"] = tmp.name
             elif COOKIES_FILE:
                 ydl_opts["cookiefile"] = COOKIES_FILE
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -231,6 +247,7 @@ ttk.Label(cookie_frame, text="Browser:").pack(side=tk.LEFT)
 browser_combo = ttk.Combobox(cookie_frame, values=BROWSERS, state="readonly", width=12)
 browser_combo.pack(side=tk.LEFT, padx=(5, 15))
 browser_combo.set("")
+browser_combo.bind("<<ComboboxSelected>>", on_browser_select)
 
 cookies_file_btn = ttk.Button(cookie_frame, text="Load cookies.txt", command=select_cookies_file)
 cookies_file_btn.pack(side=tk.LEFT)

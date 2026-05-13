@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import threading
 import os
 import sys
@@ -7,11 +7,26 @@ import io
 import yt_dlp
 from datetime import timedelta
 
+COOKIES_FILE = ""
+
 class NullLogger:
     def debug(self, msg): pass
     def info(self, msg): pass
     def warning(self, msg): pass
     def error(self, msg): pass
+
+BROWSERS = ["", "chrome", "firefox", "edge", "brave", "chromium", "opera", "vivaldi"]
+
+def select_cookies_file():
+    global COOKIES_FILE
+    path = filedialog.askopenfilename(
+        title="Select cookies.txt file",
+        filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+    )
+    if path:
+        COOKIES_FILE = path
+        cookies_file_label.config(text=os.path.basename(path))
+        browser_combo.set("")
 
 if sys.platform == "win32" and getattr(sys, "frozen", False):
     import ctypes
@@ -90,6 +105,11 @@ def download():
                 "progress_hooks": [ProgressHook()],
                 "ffmpeg_location": os.environ.get("FFMPEG_PATH", ""),
             }
+            browser = browser_combo.get()
+            if browser:
+                ydl_opts["cookiesfrombrowser"] = (browser,)
+            elif COOKIES_FILE:
+                ydl_opts["cookiefile"] = COOKIES_FILE
             if sys.platform == "win32":
                 ydl_opts["quiet"] = True
                 ydl_opts["verbose"] = False
@@ -130,6 +150,11 @@ def fetch_info():
                 "no_warnings": True,
                 "logger": NullLogger(),
             }
+            browser = browser_combo.get()
+            if browser:
+                ydl_opts["cookiesfrombrowser"] = (browser,)
+            elif COOKIES_FILE:
+                ydl_opts["cookiefile"] = COOKIES_FILE
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
             root.after(0, lambda: display_info(info))
@@ -198,6 +223,19 @@ url_entry.bind("<Return>", lambda e: fetch_info())
 
 fetch_btn = ttk.Button(url_frame, text="Fetch Info", command=fetch_info)
 fetch_btn.pack(side=tk.RIGHT)
+
+cookie_frame = ttk.LabelFrame(main_frame, text="Authentication (cookies)", padding=8)
+cookie_frame.pack(fill=tk.X, pady=(0, 10))
+
+ttk.Label(cookie_frame, text="Browser:").pack(side=tk.LEFT)
+browser_combo = ttk.Combobox(cookie_frame, values=BROWSERS, state="readonly", width=12)
+browser_combo.pack(side=tk.LEFT, padx=(5, 15))
+browser_combo.set("")
+
+cookies_file_btn = ttk.Button(cookie_frame, text="Load cookies.txt", command=select_cookies_file)
+cookies_file_btn.pack(side=tk.LEFT)
+cookies_file_label = ttk.Label(cookie_frame, text="")
+cookies_file_label.pack(side=tk.LEFT, padx=(5, 0))
 
 info_frame = ttk.LabelFrame(main_frame, text="Video Info", padding=8)
 info_frame.pack(fill=tk.X, pady=(0, 10))
